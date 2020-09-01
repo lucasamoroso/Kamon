@@ -129,6 +129,7 @@ lazy val instrumentation = (project in file("instrumentation"))
     `kamon-akka-http`,
     `kamon-play`,
     `kamon-okhttp`,
+    `kamon-armeria`
   )
 
 
@@ -423,6 +424,21 @@ lazy val `kamon-okhttp` = (project in file("instrumentation/kamon-okhttp"))
   ).dependsOn(`kamon-core`, `kamon-executors`, `kamon-testkit` % "test")
 
 
+lazy val `kamon-armeria` = (project in file("instrumentation/kamon-armeria"))
+  .disablePlugins(AssemblyPlugin)
+  .enablePlugins(JavaAgent)
+  .settings(instrumentationSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      kanelaAgent % "provided",
+      "com.linecorp.armeria" % "armeria" % "1.1.0" % "provided",
+
+      scalatest % "test",
+      okHttp % "test",
+      logbackClassic % "test"
+    )
+  ).dependsOn(`kamon-instrumentation-common`, `kamon-testkit` % "test")
+
 /**
   * Reporters
   */
@@ -637,4 +653,5 @@ val `kamon-bundle` = (project in file("bundle/kamon-bundle"))
     `kamon-akka-http` % "shaded",
     `kamon-play` % "shaded",
     `kamon-okhttp` % "shaded",
-  )
+    `kamon-armeria` % "shaded"
+)
