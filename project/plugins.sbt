@@ -12,5 +12,9 @@ addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.8.1")
 addSbtPlugin("com.jsuereth" % "sbt-pgp" % "2.0.1")
 
 addSbtPlugin("com.lightbend.akka.grpc" % "sbt-akka-grpc" % "1.0.0")
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.34")
 resolvers += Resolver.bintrayRepo("playframework", "maven")
-libraryDependencies += "com.lightbend.play" %% "play-grpc-generators" % "0.9.0"
+libraryDependencies ++= Seq(
+  "com.lightbend.play" %% "play-grpc-generators" % "0.9.0",
+  "com.thesamet.scalapb" %% "compilerplugin" % "0.10.8"
+)
