@@ -1,3 +1,19 @@
+/*
+ * Copyright 2013-2020 The Kamon Project <https://kamon.io>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package kamon
 package instrumentation
 package http
@@ -244,7 +260,8 @@ object HttpServerInstrumentation {
           if(!span.isEmpty) {
             settings.traceIDResponseHeader.foreach(traceIDHeader => response.write(traceIDHeader, span.trace.id.string))
             settings.spanIDResponseHeader.foreach(spanIDHeader => response.write(spanIDHeader, span.id.string))
-
+            settings.httpServerResponseHeaderGenerator.headers(handlerContext).foreach(header => response.write(header._1, header._2))
+            
             SpanTagger.tag(span, TagKeys.HttpStatusCode, response.statusCode, settings.statusCodeTagMode)
 
             val statusCode = response.statusCode
@@ -341,7 +358,8 @@ object HttpServerInstrumentation {
     defaultOperationName: String,
     unhandledOperationName: String,
     operationMappings: Map[Filter.Glob, String],
-    operationNameGenerator: HttpOperationNameGenerator
+    operationNameGenerator: HttpOperationNameGenerator,
+    httpServerResponseHeaderGenerator:HttpServerResponseHeaderGenerator
   ) {
     val operationNameSettings = OperationNameSettings(defaultOperationName, operationMappings, operationNameGenerator)
   }
@@ -372,6 +390,17 @@ object HttpServerInstrumentation {
       val traceIDResponseHeader = optionalString(config.getString("tracing.response-headers.trace-id"))
       val spanIDResponseHeader = optionalString(config.getString("tracing.response-headers.span-id"))
 
+      val httpServerResponseHeaderGenerator: Try[HttpServerResponseHeaderGenerator] = Try {
+        config.getString("tracing.response-headers.headers-generator") match {
+          case "none" => DefaultHttpServerResponseHeaderGenerator
+          case fqcn => ClassLoading.createInstance[HttpServerResponseHeaderGenerator](fqcn)
+        }
+      } recover {
+        case t: Throwable =>
+          _log.warn("Failed to create an HTTP Server Response Header Generator, falling back to the default no-op", t)
+          DefaultHttpServerResponseHeaderGenerator
+      }
+      
       val defaultOperationName = config.getString("tracing.operations.default")
       val operationNameGenerator: Try[HttpOperationNameGenerator] = Try {
         config.getString("tracing.operations.name-generator") match {
@@ -405,7 +434,8 @@ object HttpServerInstrumentation {
         defaultOperationName,
         unhandledOperationName,
         operationMappings,
-        operationNameGenerator.get
+        operationNameGenerator.get,
+        httpServerResponseHeaderGenerator.get
       )
     }
   }

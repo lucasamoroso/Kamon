@@ -70,7 +70,7 @@ lazy val `kamon-status-page` = (project in file("core/kamon-status-page"))
       ShadeRule.rename("fi.iki.elonen.**"       -> "kamon.lib.@0").inAll,
     ),
     libraryDependencies ++= Seq(
-      "com.grack"     %  "nanojson"  % "1.1"   % "provided,shaded",
+      "com.grack"     %  "nanojson"  % "1.6"   % "provided,shaded",
       "org.nanohttpd" %  "nanohttpd" % "2.3.1" % "provided,shaded"
     )
   ).dependsOn(`kamon-core`)
@@ -122,6 +122,7 @@ lazy val instrumentation = (project in file("instrumentation"))
     `kamon-kafka`,
     `kamon-mongo`,
     `kamon-cassandra`,
+    `kamon-elasticsearch`,
     `kamon-annotation`,
     `kamon-annotation-api`,
     `kamon-system-metrics`,
@@ -320,6 +321,22 @@ lazy val `kamon-cassandra` = (project in file("instrumentation/kamon-cassandra")
     )
   ).dependsOn(`kamon-core`, `kamon-instrumentation-common`, `kamon-testkit` % "test", `kamon-executors`)
 
+lazy val `kamon-elasticsearch` = (project in file("instrumentation/kamon-elasticsearch"))
+  .disablePlugins(AssemblyPlugin)
+  .enablePlugins(JavaAgent)
+  .settings(instrumentationSettings)
+  .settings(
+    fork in (Test,run) := true,
+    libraryDependencies ++= Seq(
+      kanelaAgent % "provided",
+      "org.elasticsearch.client" % "elasticsearch-rest-client" % "7.9.1" % "provided",
+      "org.elasticsearch.client" % "elasticsearch-rest-high-level-client" % "7.9.1" % "provided",
+      scalatest % "test",
+      logbackClassic % "test",
+      "com.dimafeng" %% "testcontainers-scala" % "0.38.3" % "test",
+      "com.dimafeng" %% "testcontainers-scala-elasticsearch" % "0.38.3" % "test"
+    )
+  ).dependsOn(`kamon-core`, `kamon-instrumentation-common`, `kamon-testkit` % "test")
 
 
 lazy val `kamon-annotation-api` = (project in file("instrumentation/kamon-annotation-api"))
@@ -357,7 +374,7 @@ lazy val `kamon-system-metrics` = (project in file("instrumentation/kamon-system
   .settings(instrumentationSettings: _*)
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.oshi" % "oshi-core" % "4.2.1",
+      oshiCore,
       scalatest % "test",
       logbackClassic % "test"
     )
@@ -487,8 +504,9 @@ lazy val `kamon-datadog` = (project in file("reporters/kamon-datadog"))
   .settings(
     libraryDependencies ++= Seq(
       okHttp,
-      "com.typesafe.play" %% "play-json" % "2.7.4",
+      "com.grack" % "nanojson" % "1.6",
 
+      "com.typesafe.play" %% "play-json" % "2.7.4" % "test",
       scalatest % "test",
       slf4jApi % "test",
       slf4jnop % "test",
@@ -534,14 +552,12 @@ lazy val `kamon-statsd` = (project in file("reporters/kamon-statsd"))
   .disablePlugins(AssemblyPlugin)
   .settings(
     libraryDependencies += scalatest % Test,
-    parallelExecution in Test := false
   ).dependsOn(`kamon-core`)
 
 
 lazy val `kamon-zipkin` = (project in file("reporters/kamon-zipkin"))
   .disablePlugins(AssemblyPlugin)
   .settings(
-    parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       "io.zipkin.reporter2" % "zipkin-reporter" % "2.7.15",
       "io.zipkin.reporter2" % "zipkin-sender-okhttp3" % "2.7.15",
@@ -553,7 +569,6 @@ lazy val `kamon-zipkin` = (project in file("reporters/kamon-zipkin"))
 lazy val `kamon-jaeger` = (project in file("reporters/kamon-jaeger"))
   .disablePlugins(AssemblyPlugin)
   .settings(
-    parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       "io.jaegertracing" % "jaeger-thrift" % "1.1.0",
       scalatest % "test"
@@ -622,14 +637,14 @@ val `kamon-bundle` = (project in file("bundle/kamon-bundle"))
   .enablePlugins(AssemblyPlugin)
   .settings(
     moduleName := "kamon-bundle",
-    kanelaAgentVersion := "1.0.6",
+    kanelaAgentVersion := "1.0.7",
     buildInfoPackage := "kamon.bundle",
     buildInfoKeys := Seq[BuildInfoKey](kanelaAgentJarName),
     kanelaAgentJar := update.value.matching(Modules.exactFilter(kanelaAgent)).head,
     kanelaAgentJarName := kanelaAgentJar.value.getName,
     resourceGenerators in Compile += Def.task(Seq(kanelaAgentJar.value)).taskValue,
     libraryDependencies ++= Seq(
-      "com.github.oshi" % "oshi-core" % "4.2.1",
+      oshiCore,
       kanelaAgent % "provided",
       "net.bytebuddy" % "byte-buddy-agent" % "1.9.12" % "provided,shaded",
     ),
@@ -668,6 +683,7 @@ val `kamon-bundle` = (project in file("bundle/kamon-bundle"))
     `kamon-kafka` % "shaded",
     `kamon-mongo` % "shaded",
     `kamon-cassandra` % "shaded",
+    `kamon-elasticsearch` % "shaded",
     `kamon-annotation` % "shaded",
     `kamon-annotation-api` % "shaded",
     `kamon-system-metrics` % "shaded",
